@@ -14,7 +14,6 @@ def proxies_get():
         content = f.read()
         proxies = json.loads(content)
     print(len(proxies))
-
     return proxies
 
 def hot_get():
@@ -27,23 +26,29 @@ def hot_get():
     return hot_url,int(n)
 
 
-def page_url_get(proxy,page_url,h_url):
-    try:
-        resp = requests.get(h_url,headers=headers,proxies=proxy,timeout=1)
-        src = re.findall(r'data-src="(.*?)"', resp.text)
-        for i in src:
-            page_url.append(i)
-            print('正在追加1')
-    except:
-        print('追加失败')
-    print(f'pageurl个数为{len(page_url)}')
-    return page_url
+def page_url_get(proxies,page_url,h_url):
+    # try:
+        resp = requests.get(h_url,headers=headers,proxies=random.choice(proxies),timeout=1)
+        if resp.status_code == 200:
+            src = re.findall(r'data-src="(.*?)"', resp.text)
+            for i in src:
+                page_url.append(i)
+                print('正在追加1')
+            print(f'pageurl个数为{len(page_url)}')
+            return page_url
+    # except:
+        else:
+            print('追加失败')
+            time.sleep(1)
+            return page_url_get(proxies,page_url,h_url)
+
+
 
 def page_url_thget(hot_url,proxies):
     page_url = []
-    with ThreadPoolExecutor(10)as f:
+    with ThreadPoolExecutor(5)as f:
         for h_url in hot_url:
-            f.submit(page_url_get,proxy=random.choice(proxies),page_url = page_url,h_url = h_url)
+            f.submit(page_url_get,proxies,page_url = page_url,h_url = h_url)
     print(page_url)
     return page_url
 
@@ -63,38 +68,53 @@ def fn(i,url,proxies):
     # try:
     resp = requests.get(i,proxies=random.choice(proxies),headers=headers,timeout=10)
     if resp.status_code == 404:
-        print(i.replace('.jpg', '.png'))
+        filename = i.replace('.jpg', '.png').split('/')[-1]
+    #     try:
+        resp = requests.get(i.replace('.jpg', '.png'),proxies=random.choice(proxies),headers=headers,timeout=10)
+        with open(f'wallpaper4/{filename}','wb') as f:
+            f.write(resp.content)
+        print('正在下载',i.replace('.jpg', '.png'))
         url.append(i.replace('.jpg', '.png'))
-        print(404)
+        return url
+    #     except:
+    #         print('下载失败',i.replace('.jpg', '.png'))
+    #     # print(404)
     elif resp.status_code == 200:
+        filename = i.split('/')[-1]
+        with open(f'wallpaper4/{filename}','wb') as f:
+            f.write(resp.content)
         url.append(i)
-        print(i)
+        print('正在下载',i)
+        return url
     else:
-        print('_________________')
-    return url
+        print('_________________', i)
+        time.sleep(5)
+        return fn(i,url,proxies)
 
-def img_url_creat(page_url,proxies):
-    with ThreadPoolExecutor(10) as f:
+
+def img_url_download(page_url,proxies,n):
+    with ThreadPoolExecutor(n) as f:
         img_url = []
+        # too_requ_url = []
         for i in page_url:
             f.submit(fn,i,img_url,proxies)
     print(len(img_url),'==============')
     return img_url
 
-def download_img(img,proxie):
-    try:
-        resp = requests.get(img, proxies=random.choice(proxie), headers=headers,timeout=15)
-        filename = img.split('/')[-1]
-        with open(f'wallpaper4/{filename}','wb') as f:
-            f.write(resp.content)
-        print(f'正在下载图片{filename}')
-    except:
-        print('下载失败')
-
-def th_download_img(img_url,proxies,n):
-    with ThreadPoolExecutor(n)as s:
-        for img in img_url:
-            s.submit(download_img,img,proxies)
+# def download_img(img,proxie):
+#     try:
+#         resp = requests.get(img, proxies=random.choice(proxie), headers=headers,timeout=15)
+#         filename = img.split('/')[-1]
+#         with open(f'wallpaper4/{filename}','wb') as f:
+#             f.write(resp.content)
+#         print(f'正在下载图片{filename}')
+#     except:
+#         print('下载失败')
+#
+# def th_download_img(img_url,proxies,n):
+#     with ThreadPoolExecutor(n)as s:
+#         for img in img_url:
+#             s.submit(download_img,img,proxies)
 
 
 
@@ -105,8 +125,8 @@ def main():
     print(n)
     page_url = page_url_thget(hot_url,proxies)
     i_url = page_url_change(page_url)
-    img_url = img_url_creat(i_url,proxies)
-    th_download_img(img_url,proxies,n)
+    img_url_download(i_url,proxies,n)
+    # th_download_img(img_url,proxies,n)
     js = time.time()
     print(ks - js)
 
