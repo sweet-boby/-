@@ -7,6 +7,7 @@ from lxml import etree
 
 import time
 
+from concurrent.futures import ThreadPoolExecutor
 proxy = {
     'http':'49.235.194.72'
 }
@@ -27,29 +28,48 @@ def apool_ap(n,x_path):
     for x in tree:
         ip = {'http': f'{x}'}
         apool.append(ip)
+    print(len(apool))
 
-def bpool_ap(apool):
-    for i in apool:
-        baidu_url = 'http://www.baidu.com/'
-        proxy = i
-        try:
-            resp = requests.get(baidu_url,headers=headers,proxies=proxy,timeout=0.1)
-            if resp.status_code==200:
-                bpool.append(i)
-                print('ip合格')
-        except:
-            print('ip不合格')
+
+def bpool_ap(ip):
+    # for i in apool:
+    baidu_url = 'https://wallhaven.cc/hot'
+    proxy = ip
+    try:
+        resp = requests.get(baidu_url,headers=headers,proxies=proxy,timeout=0.5)
+        if resp.status_code==200:
+            bpool.append(ip)
+            print('ip合格')
+    except:
+        print('ip不合格')
+    print(len(bpool))
+
 
 apool = []
 bpool = []
 
 def pool():
-    for i in range(1,3):
+    ks = time.time()
+    for i in range(1,100):
         apool_ap(i,x_path)
-        print(len(apool))
-    bpool_ap(apool)
-    print(len(bpool))
-ks = time.time()
-pool()
-js = time.time()
-print(ks - js )
+    with ThreadPoolExecutor(100)as f:
+        for ip in apool:
+            f.submit(bpool_ap,ip)
+    js = time.time()
+    print(ks - js )
+
+if __name__ == '__main__':
+    pool()
+    import json
+    with open('ip1.txt','w')as f:
+        json.dump(bpool,f)
+
+
+# import random
+# import json
+# with open('ip.txt','r')as f:
+#     content = f.read()
+#     proxies = json.loads(content)
+# print(len(proxies))
+# proxy = random.choice(proxies)
+
